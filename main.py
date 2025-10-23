@@ -19,26 +19,30 @@ m3_backward = Pin(16,Pin.OUT)
 ENC = PWM(Pin(20))
 
 #motor 4
-m4_forward = Pin(18,Pin.OUT)
-m4_backward = Pin(19,Pin.OUT)
+m4_forward = Pin(19,Pin.OUT)
+m4_backward = Pin(18,Pin.OUT)
 END = PWM(Pin(21))
 
 #servo motors
-pwm_2 = PWM(Pin(18))
-pwm_2.freq(50)
-pwm_3 = PWM(Pin(19))
-pwm_3.freq(50)
+# Don't initialize pwm_2 and pwm_3 at startup - they share pins with motor 4
+pwm_2 = None
+pwm_3 = None
+
+pwm_1 = PWM(Pin(28))
+pwm_1.freq(50)
 
 Start_Button = Pin(2,Pin.IN, Pin.PULL_UP)
 
 uart = UART(0, 9600)
 
-speed = 50000 # 0 - 65025
+def set_speed(new_speed):
+    ENA.duty_u16(new_speed)
+    ENB.duty_u16(new_speed)
+    ENC.duty_u16(new_speed)
+    END.duty_u16(new_speed)
 
-ENA.duty_u16(speed)
-ENB.duty_u16(speed) 
-ENC.duty_u16(speed)
-END.duty_u16(speed)
+# Set initial speed
+set_speed(50000)
 
 # Mode tracking
 autonomous_mode = True
@@ -100,12 +104,31 @@ def stop():
 
 def disable_servos():
     """Disable servo PWM to allow motor 4 to work"""
-    pwm_2.deinit()
-    pwm_3.deinit()
+    global pwm_2, pwm_3
+    try:
+        if pwm_2:
+            pwm_2.deinit()
+    except:
+        pass
+    try:
+        if pwm_3:
+            pwm_3.deinit()
+    except:
+        pass
+    pwm_2 = None
+    pwm_3 = None
 
 def enable_servos():
     """Re-enable servo PWM"""
     global pwm_2, pwm_3
+    try:
+        if pwm_2:
+            pwm_2.deinit()
+        if pwm_3:
+            pwm_3.deinit()
+    except:
+        pass
+    
     pwm_2 = PWM(Pin(18))
     pwm_2.freq(50)
     pwm_3 = PWM(Pin(19))
@@ -132,11 +155,6 @@ def calc_time(dist):
     # Time = Distance / Speed
     return float(dist) / 50.0
 
-def set_speed(new_speed):
-    ENA.duty_u16(new_speed)
-    ENB.duty_u16(new_speed)
-    ENC.duty_u16(new_speed)
-    END.duty_u16(new_speed)
 
 #autonomous behavior for red start side
 def red_autonomous_behavior():
@@ -144,26 +162,27 @@ def red_autonomous_behavior():
     if timed_sleep_with_override(2):  
         return True
     
-    print(calc_time(70))
-    
-    right()
-    if timed_sleep_with_override(1):
-        return True
+    # right()
+    # if timed_sleep_with_override(1):
+    #     return True
 
-    forward()
-    if timed_sleep_with_override(calc_time(73.5)):  
-        return True
+    # forward()
+    # if timed_sleep_with_override(calc_time(73.5)):  
+    #     return True
     
-    right()
-    if timed_sleep_with_override(1):
-        return True
+    # right()
+    # if timed_sleep_with_override(1):
+    #     return True
     
     # Reduce speed for final approach
     set_speed(25000)
     
     forward()
-    if timed_sleep_with_override(calc_time(10)):
+    if timed_sleep_with_override(2):
         return True
+    
+    # Restore original speed after autonomous completes
+    set_speed(50000)
     
     return False
 
@@ -171,6 +190,68 @@ def CalculateAngle(angle):
    angle = fabs((angle * (6000 / 180)) + 2000)
    angle = round(angle)
    return angle
+
+def reinitialize_motor4():
+    """Reinitialize motor 4 pins after servo use"""
+    global m4_forward, m4_backward
+    m4_forward = Pin(18, Pin.OUT)
+    m4_backward = Pin(19, Pin.OUT)
+    m4_forward.off()
+    m4_backward.off()
+
+def servo_up():
+    # Stop motor 4 first
+    m4_forward.off()
+    m4_backward.off()
+    sleep(0.1)  # Brief delay to ensure pins are free
+    
+    # Create fresh PWM objects
+    try:
+        servo2 = PWM(Pin(18))
+        servo2.freq(50)
+        servo3 = PWM(Pin(19))
+        servo3.freq(50)
+        
+        # Move servos
+        servo2.duty_u16(CalculateAngle(0))
+        servo3.duty_u16(CalculateAngle(180))
+        sleep(0.5)  # Give servo time to reach position
+        
+        # Clean up
+        servo2.deinit()
+        servo3.deinit()
+    except Exception as e:
+        print(f"Servo error: {e}")
+    
+    # Reinitialize motor 4 pins for digital output
+    reinitialize_motor4()
+
+def servo_down():
+    # Stop motor 4 first
+    m4_forward.off()
+    m4_backward.off()
+    sleep(0.1)  # Brief delay to ensure pins are free
+    
+    # Create fresh PWM objects
+    try:
+        servo2 = PWM(Pin(18))
+        servo2.freq(50)
+        servo3 = PWM(Pin(19))
+        servo3.freq(50)
+        
+        # Move servos
+        servo2.duty_u16(CalculateAngle(180))
+        servo3.duty_u16(CalculateAngle(0))
+        sleep(0.5)  # Give servo time to reach position
+        
+        # Clean up
+        servo2.deinit()
+        servo3.deinit()
+    except Exception as e:
+        print(f"Servo error: {e}")
+    
+    # Reinitialize motor 4 pins for digital output
+    reinitialize_motor4()
 
 def alternate_servos_with_override(cycles, delay_sec):
     """Alternate servos between 0 and 90 degrees
@@ -182,40 +263,55 @@ def alternate_servos_with_override(cycles, delay_sec):
     Returns:
         True if manual override detected, False otherwise
     """
-    enable_servos()
     m4_forward.off()
     m4_backward.off()
+    sleep(0.1)
     
-    for i in range(cycles):
-        # Move to 90 degrees (up position)
-        pwm_2.duty_u16(CalculateAngle(0))
-        pwm_3.duty_u16(CalculateAngle(180))
+    try:
+        servo2 = PWM(Pin(18))
+        servo2.freq(50)
+        servo3 = PWM(Pin(19))
+        servo3.freq(50)
         
-        if timed_sleep_with_override(delay_sec):
-            return True
+        for i in range(cycles):
+            # Move to up position
+            servo2.duty_u16(CalculateAngle(0))
+            servo3.duty_u16(CalculateAngle(180))
+            
+            if timed_sleep_with_override(delay_sec):
+                servo2.deinit()
+                servo3.deinit()
+                reinitialize_motor4()
+                return True
+            
+            # Move to down position
+            servo2.duty_u16(CalculateAngle(180))
+            servo3.duty_u16(CalculateAngle(0))
+            
+            if timed_sleep_with_override(delay_sec):
+                servo2.deinit()
+                servo3.deinit()
+                reinitialize_motor4()
+                return True
         
-        # Move to 0 degrees (down position)
-        pwm_2.duty_u16(CalculateAngle(180))
-        pwm_3.duty_u16(CalculateAngle(0))
-        
-        if timed_sleep_with_override(delay_sec):
-            return True
+        servo2.deinit()
+        servo3.deinit()
+    except Exception as e:
+        print(f"Servo error: {e}")
     
+    # Reinitialize motor 4 pins for digital output
+    reinitialize_motor4()
     return False
 
-def servo_up():
-    enable_servos()
-    m4_forward.off()
-    m4_backward.off()
-    pwm_2.duty_u16(CalculateAngle(0))
-    pwm_3.duty_u16(CalculateAngle(180))
+def servo_open():
+    """Open the lifting mechanism using servo 1"""
+    pwm_1.duty_u16(CalculateAngle(0))  # Open position
+    sleep(0.5)  # Give servo time to reach position
 
-def servo_down():
-    enable_servos()
-    m4_forward.off()
-    m4_backward.off()
-    pwm_2.duty_u16(CalculateAngle(180))
-    pwm_3.duty_u16(CalculateAngle(0))
+def servo_close():
+    """Close the lifting mechanism using servo 1"""
+    pwm_1.duty_u16(CalculateAngle(180))  # Close position
+    sleep(0.5)  # Give servo time to reach position
 
 # ok button configuration
 def Start():
@@ -265,6 +361,10 @@ while True:
                 servo_down()
             elif value == b'2':
                 servo_up()
+            elif value == b'3':
+                servo_open()
+            elif value == b'4':
+                servo_close()
 
 
 
