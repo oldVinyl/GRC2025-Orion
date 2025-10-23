@@ -36,24 +36,68 @@ A MicroPython-based robot controller for a 4-wheel drive robot with servo attach
 - **Motor 1:** ENA (GPIO 10), Forward (GPIO 11), Backward (GPIO 12)
 - **Motor 2:** ENB (GPIO 13), Forward (GPIO 14), Backward (GPIO 15)
 - **Motor 3:** ENC (GPIO 20), Forward (GPIO 17), Backward (GPIO 16)
-- **Motor 4:** END (GPIO 21), Forward (GPIO 18), Backward (GPIO 19)
+- **Motor 4:** END (GPIO 21), Forward (GPIO 19), Backward (GPIO 18)
 
 ### Servos
-- **Servo 1:** GPIO 18 (shared with Motor 4 forward)
-- **Servo 2:** GPIO 19 (shared with Motor 4 backward)
+- **Servo 1:** GPIO 28 (lifting mechanism)
+- **Servo 2:** GPIO 18 (shared with Motor 4 backward pin)
+- **Servo 3:** GPIO 19 (shared with Motor 4 forward pin)
+
+**Note:** Servos 2 and 3 share pins with Motor 4. The `utils.py` module automatically manages these conflicts by disabling servo PWM when motors are in use and reinitializing motor pins after servo operations.
 
 ### Other
 - **Start Button:** GPIO 2 (with pull-up)
 - **UART:** UART0, 9600 baud
 
+## Core Functions (from utils.py)
+
+### Motor Control
+- `set_speed(speed)` - Set PWM duty cycle for all motors (0-65535)
+- `forward()` - Move robot forward
+- `backward()` - Move robot backward
+- `left()` - Turn robot left
+- `right()` - Turn robot right
+- `stop()` - Stop all motors
+
+### Servo Control
+- `servo_up()` - Raise servos 2 & 3 to up position
+- `servo_down()` - Lower servos 2 & 3 to down position
+- `servo_open()` - Open servo 1 (lifting mechanism)
+- `servo_close()` - Close servo 1 (lifting mechanism)
+- `enable_servos()` - Initialize servo PWM on shared pins
+- `disable_servos()` - Disable servo PWM to allow motor operation
+
+### Autonomous Functions
+- `red_autonomous_behavior()` - Execute pre-programmed autonomous routine
+- `check_manual_override()` - Check for incoming UART commands
+- `timed_sleep_with_override(duration)` - Sleep with ability to detect manual override
+
+## Project Structure
+
+```
+GRC_25/
+├── main.py       - Main robot controller and operation loop
+├── utils.py      - Hardware utilities and motor/servo control functions
+├── README.md     - This file
+└── requirements.txt
+```
+
+### File Descriptions
+
+- **main.py**: Main program that handles the operation loop, mode switching between autonomous and manual control, and processes Bluetooth commands
+- **utils.py**: Contains all hardware initialization, motor control functions, servo operations, and autonomous behavior routines
+
 ## Installation
 
 1. Install MicroPython firmware on your Raspberry Pi Pico
-2. Upload the files to your device:
-   ```
-   main.py  - Main robot controller
-   ```
-3. Connect your hardware according to the pin configuration
+2. Upload **all project files** to your Pico's root directory:
+   - `main.py` - Main robot controller
+   - `utils.py` - Hardware utilities and control functions
+   
+   **Important:** Both files must be uploaded to the Pico for the robot to function properly. The `main.py` file imports functions from `utils.py`.
+
+3. Connect your hardware according to the pin configuration below
+4. The robot will automatically run `main.py` on power-up (if configured as boot.py or main.py)
 
 ## Usage
 
