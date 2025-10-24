@@ -41,6 +41,12 @@ def set_speed(new_speed):
     ENC.duty_u16(new_speed)
     END.duty_u16(new_speed)
 
+def custom_set_speed():
+    ENA.duty_u16(40000)
+    ENB.duty_u16(45000)
+    ENC.duty_u16(40000)
+    END.duty_u16(45000)
+
 def forward():
     disable_servos()
     m1_forward.on()
@@ -144,38 +150,70 @@ def timed_sleep_with_override(duration_sec):
 
 
 def calc_time(dist):
-    # Bot moves 50 cm in 1 second, so speed is 50 cm/s
+    # Bot moves 40.5 cm in 1 second, so speed is 40.5 cm/s
     # Time = Distance / Speed
-    return float(dist) / 50.0
+    return 1.8*(float(dist) / 40.5)
 
 
 #autonomous behavior for red start side
 def red_autonomous_behavior():
+    custom_set_speed()
     forward()
-    if timed_sleep_with_override(2):  
+    if timed_sleep_with_override(calc_time(67)):
         return True
     
-    # right()
-    # if timed_sleep_with_override(1):
-    #     return True
+    right()
+    if timed_sleep_with_override(0.89):
+        return True
 
-    # forward()
-    # if timed_sleep_with_override(calc_time(73.5)):  
-    #     return True
+    forward()
+    if timed_sleep_with_override(calc_time(76)):  
+        return True
     
-    # right()
-    # if timed_sleep_with_override(1):
-    #     return True
-    
+    left()
+    if timed_sleep_with_override(1):
+        return True
+
     # Reduce speed for final approach
     set_speed(25000)
     
-    forward()
-    if timed_sleep_with_override(2):
+    backward()
+    if timed_sleep_with_override(3):
         return True
     
     # Restore original speed after autonomous completes
-    set_speed(50000)
+    set_speed(65000)
+    
+    return False
+
+#autonomous behavior for blue start side
+def blue_autonomous_behavior():
+    custom_set_speed()
+    forward()
+    if timed_sleep_with_override(calc_time(45)):
+        return True
+    
+    right()
+    if timed_sleep_with_override(0.89):
+        return True
+
+    forward()
+    if timed_sleep_with_override(calc_time(61)):  
+        return True
+    
+    left()
+    if timed_sleep_with_override(1):
+        return True
+
+    # Reduce speed for final approach
+    set_speed(25000)
+    
+    backward()
+    if timed_sleep_with_override(3):
+        return True
+    
+    # Restore original speed after autonomous completes
+    set_speed(65000)
     
     return False
 
