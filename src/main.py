@@ -1,5 +1,6 @@
 from time import sleep
-from utils import set_speed, red_autonomous_behavior, blue_autonomous_behavior, forward, backward, left, right, stop, servo_up, servo_down, servo_open, servo_close, Start, uart
+from src.utils import set_speed, forward, backward, left, right, stop, servo_up, servo_down, servo_open, servo_close, Start, uart
+from src.autonomous import red_autonomous_behavior, blue_autonomous_behavior
 
 # Set initial speed
 set_speed(50000)
