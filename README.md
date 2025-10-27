@@ -1,148 +1,222 @@
-# GHANA ROBOTICS COMPETITION 2025 ROBOT CONTROLLER
+# Ghana Robotics Competition 2025 — ORION V2
 
-A MicroPython-based robot controller for a 4-wheel drive robot with servo attachments for the 2025 edition of the Ghana Robotics Competition. The robot supports both autonomous navigation and Bluetooth-controlled manual operation.
+**MicroPython robot controller for the Ghana Robotics Competition (Engineers League, Smart City Builders Challenge).**
+This repository contains the code, documentation, and build assets for **ORION V2**, a 4-wheel drive robot built with the Xplore Bot kit and a Raspberry Pi Pico brain. The robot supports a 30-second autonomous period (priority missions) and manual (Bluetooth) control for the remaining match time.
 
-## Features
+---
 
-- **Dual Operation Modes**
-  - Autonomous mode with pre-programmed navigation routines
-  - Manual control via UART/Bluetooth communication
-  
-- **4-Motor Drive System**
-  - Independent control of 4 DC motors with PWM speed control
-  - Directional movement: forward, backward, left, right, and stop
-  
-- **Servo Control**
-  - Dual servo motors for additional mechanical functions
-  - Up/down positioning and alternating movement patterns
-  
-- **Manual Override**
-  - Seamlessly switch from autonomous to manual mode during operation
-  - Real-time command processing via UART
+## Table of Contents
 
-## Hardware Requirements
+* [Project Overview](#project-overview)
+* [Repository Structure](#repository-structure)
+* [Quick Start (Flash & Run)](#quick-start--flash--run)
+* [Hardware (Requirements & Pinout)](#hardware--requirements--pinout)
+* [Software (Files & Usage)](#software--files--usage)
+* [Autonomous and Manual Behaviors](#autonomous-and-manual-behaviors-high-level-overview)
+* [Contributing](#contributing)
+* [Troubleshooting](#troubleshooting)
+* [License](#license)
+* [Credits & Contact](#credits--contact)
 
-- Raspberry Pi Pico (or compatible MicroPython board)
-- 4x DC motors with H-bridge motor drivers
-- 4x PWM motor controllers
-- 2x Servo motors
-- Bluetooth/UART module
-- Start button (connected to GPIO 2)
-- Appropriate power supply
+---
 
-## Pin Configuration
+## Project Overview
 
-### Motors
-- **Motor 1:** ENA (GPIO 10), Forward (GPIO 11), Backward (GPIO 12)
-- **Motor 2:** ENB (GPIO 13), Forward (GPIO 14), Backward (GPIO 15)
-- **Motor 3:** ENC (GPIO 20), Forward (GPIO 17), Backward (GPIO 16)
-- **Motor 4:** END (GPIO 21), Forward (GPIO 19), Backward (GPIO 18)
+The **Smart City Builders Challenge** requires the robot to complete three core missions:
 
-### Servos
-- **Servo 1:** GPIO 28 (lifting mechanism)
-- **Servo 2:** GPIO 18 (shared with Motor 4 backward pin)
-- **Servo 3:** GPIO 19 (shared with Motor 4 forward pin)
+1. Fix a broken bridge (bridge pallets)
+2. Build essential services (stack building blocks at specific sites)
+3. Clean the city (collect rubbish balls into bins)
 
-**Note:** Servos 2 and 3 share pins with Motor 4. The `utils.py` module automatically manages these conflicts by disabling servo PWM when motors are in use and reinitializing motor pins after servo operations.
+**Strategy Summary (Team Decision):**
 
-### Other
-- **Start Button:** GPIO 2 (with pull-up)
-- **UART:** UART0, 9600 baud
+* Prioritize **bridge repair** during autonomous mode (double points / avoid penalty)
+* Use manual mode for building stacks (precision stacking)
+* Use manual or autonomous rubbish collection as fallback / steady scoring
 
-## Core Functions (from utils.py)
+> For full design rationale, testing logs, and week-by-week notes, see [`docs/Engineering_Notebook.pdf`](docs/Engineering_Notebook.pdf).
 
-### Motor Control
-- `set_speed(speed)` - Set PWM duty cycle for all motors (0-65535)
-- `forward()` - Move robot forward
-- `backward()` - Move robot backward
-- `left()` - Turn robot left
-- `right()` - Turn robot right
-- `stop()` - Stop all motors
+---
 
-### Servo Control
-- `servo_up()` - Raise servos 2 & 3 to up position
-- `servo_down()` - Lower servos 2 & 3 to down position
-- `servo_open()` - Open servo 1 (lifting mechanism)
-- `servo_close()` - Close servo 1 (lifting mechanism)
-- `enable_servos()` - Initialize servo PWM on shared pins
-- `disable_servos()` - Disable servo PWM to allow motor operation
-
-### Autonomous Functions
-- `red_autonomous_behavior()` - Execute pre-programmed autonomous routine
-- `check_manual_override()` - Check for incoming UART commands
-- `timed_sleep_with_override(duration)` - Sleep with ability to detect manual override
-
-## Project Structure
+## Repository Structure
 
 ```
-GRC_25/
-├── main.py       - Main robot controller and operation loop
-├── utils.py      - Hardware utilities and motor/servo control functions
-├── README.md     - This file
-└── requirements.txt
+├── README.md
+├── LICENSE
+├── docs/
+│   ├── Engineering_Notebook.pdf
+│   └── Game_Rules.pdf
+├── src/
+│   ├── main.py
+│   ├── autonomous.py
+│   └── utils.py
+├── schemes/
+│   └── wiring_diagram.png
+├── models/
+│   └── attachments/
+├── photos/
+│   ├── build/
+│   └── final/
+└── video/
+    └── demo.mp4
 ```
 
-### File Descriptions
+---
 
-- **main.py**: Main program that handles the operation loop, mode switching between autonomous and manual control, and processes Bluetooth commands
-- **utils.py**: Contains all hardware initialization, motor control functions, servo operations, and autonomous behavior routines
+## Quick Start — Flash & Run (Raspberry Pi Pico)
 
-## Installation
+1. Install MicroPython firmware on your Pico (use Thonny or `esptool` for flashing).
+2. Copy `src/main.py`, `src/utils.py`, and `src/autonomous.py` to the Pico root.
+3. Power the robot — `main.py` will:
 
-1. Install MicroPython firmware on your Raspberry Pi Pico
-2. Upload **all project files** to your Pico's root directory:
-   - `main.py` - Main robot controller
-   - `utils.py` - Hardware utilities and control functions
-   
-   **Important:** Both files must be uploaded to the Pico for the robot to function properly. The `main.py` file imports functions from `utils.py`.
+   * Wait for the **Start** button (`GPIO 2`)
+   * Run the autonomous routine
+   * Monitor UART for manual override (Bluetooth)
+4. To test manual mode via Bluetooth:
 
-3. Connect your hardware according to the pin configuration below
-4. The robot will automatically run `main.py` on power-up (if configured as boot.py or main.py)
+   * Pair your phone or HC-05 module with the Pico.
+   * Send one-character commands (`F`, `B`, `L`, `R`, `S`, `1`, `2`).
 
-## Usage
+---
+
+## Hardware — Requirements & Pinout
+
+**Board:** Raspberry Pi Pico (MicroPython)
+
+### Required Components
+
+* **4x DC Motors** — Two front, two back (for drive control)
+* **4x H-Bridge Motor Drivers (L298N or similar)** — One per motor pair, supports direction and PWM speed control
+* **3x Servo Motors** —
+
+  * Servo 1 (lifting mechanism): `GPIO 28`
+  * Servo 2 (attachment): `GPIO 18`
+  * Servo 3 (attachment): `GPIO 19`
+* **Bluetooth Module (HC-05)** — Manual control via UART
+* **Ultrasonic Sensor (HC-SR04)** — Optional; for distance measurement
+* **Start Button** — `GPIO 2`, internal pull-up enabled
+* **Battery Pack** — 7.4V (2S Li-ion or LiPo), powers Pico and drivers; ensure **common ground**
+
+### Pin Mapping
+
+#### Motor Control
+
+* **Motor 1 (Left-Front)**
+
+  * ENA (PWM): `GPIO 10`
+  * IN1 (Forward): `GPIO 11`
+  * IN2 (Backward): `GPIO 12`
+* **Motor 2 (Right-Front)**
+
+  * ENB (PWM): `GPIO 13`
+  * IN1: `GPIO 14`
+  * IN2: `GPIO 15`
+* **Motor 3 (Left-Back)**
+
+  * ENC (PWM): `GPIO 20`
+  * IN1: `GPIO 17`
+  * IN2: `GPIO 16`
+* **Motor 4 (Right-Back)**
+
+  * END (PWM): `GPIO 21`
+  * IN1: `GPIO 19`
+  * IN2: `GPIO 18`
+
+#### Servo Control
+
+* **Servo 1 (Lift Mechanism):** `GPIO 28`
+* **Servo 2 (Attachment A):** `GPIO 18` *(shared with Motor 4 Backward pin)*
+* **Servo 3 (Attachment B):** `GPIO 19` *(shared with Motor 4 Forward pin)*
+
+> ⚠️ **Pin Conflict:** Motor 4 shares control pins with Servos 2 and 3. The firmware disables motor PWM during servo operation, then reinitializes motor pins afterward. See `disable_servos()`, `enable_servos()`, and `reinitialize_motor4()` in `utils.py`.
+
+#### Other Peripherals
+
+* **Start Button:** `GPIO 2` (internal pull-up)
+* **UART / Bluetooth (HC-05):** UART0, `9600` baud
+
+  * TX (Pico) → RX (HC-05)
+  * RX (Pico) ← TX (HC-05)
+
+---
+
+## Software — Files & Usage
+
+* **`src/utils.py`** — Hardware setup, motor & servo helpers, PWM control, and safety functions.
+* **`src/autonomous.py`** — Autonomous mission logic (bridge repair, fallback routines).
+* **`src/main.py`** — Main control loop: initialization, autonomous execution, UART override handling.
+
+---
+
+## Autonomous and Manual Behaviors (High-Level Overview)
 
 ### Autonomous Mode
 
-The robot starts in autonomous mode by default. Press the start button to begin:
+* Runs for the first minute of the match.
+* Executes pre-programmed actions with no manual input.
+* **Primary:** Bridge repair for double points.
+* **Fallback:** Rubbish collection if bridge repair fails.
+* **Safety:** Conservative motor speeds; tune via `set_speed()` in `utils.py`.
+* **Transition:** Switches to manual after completion or UART override.
 
-1. Press the physical start button (GPIO 2)
-2. Wait 3 seconds for initialization
-3. Robot executes pre-programmed autonomous behavior
+### Manual Mode
 
-The autonomous routine includes:
-- Forward navigation
-- Right turns
-- Speed adjustments for precision
-- Automatic stop upon completion
+* Controlled via Bluetooth UART commands for precision stacking and fine control.
 
-### Manual Control
+#### Tasks
 
-Send commands via Bluetooth/UART connection:
+* **Building Assembly:** Stack blocks in order: foundation → middle → roof.
+* **Rubbish Collection:** Manually pick and deposit rubbish.
+* **Repositioning:** Minor movement adjustments.
 
-| Command | Action |
-|---------|--------|
-| `F` | Move forward |
-| `B` | Move backward |
-| `L` | Turn left |
-| `R` | Turn right |
-| `S` | Stop |
-| `1` | Servo down position |
-| `2` | Servo up position |
+#### Bluetooth Commands
+
+| Command | Description         |
+| ------- | ------------------- |
+| `F`     | Move forward        |
+| `B`     | Move backward       |
+| `L`     | Turn left           |
+| `R`     | Turn right          |
+| `S`     | Stop motors         |
+| `1`     | Servo down position |
+| `2`     | Servo up position   |
 
 ### Manual Override
 
-During autonomous mode, send any command via UART to immediately switch to manual control mode.
+* Sending any UART command stops the autonomous routine and switches to manual control.
+* Useful for real-time intervention if the robot misaligns or encounters obstacles.
 
-## Troubleshooting
+> **Tip:** Pair Bluetooth before the match to ensure instant override availability.
 
-- **Motors not responding:** Check PWM connections and power supply
-- **Servos not moving:** Ensure motors are stopped and servos are enabled
-- **Bluetooth commands not working:** Verify UART baud rate (9600) and connection
-
-## License
-
-This project is provided as-is for educational and competition purposes.
+---
 
 ## Contributing
 
-Feel free to modify and adapt this code for your specific robot configuration and requirements.
+1. Create a new branch: `git checkout -b feature/branch-name`
+2. Keep commits atomic with clear messages.
+3. Submit a PR to `main` with testing notes.
+
+---
+
+## Troubleshooting
+
+* **Motors not responding:** Check PWM wiring and power supply.
+* **Servos not moving:** Ensure motors are stopped and servos re-enabled.
+* **Bluetooth not working:** Verify baud rate (9600) and TX/RX wiring.
+
+---
+
+## License
+
+Licensed under the **MIT License**. See [`LICENSE`](LICENSE) for full text.
+
+---
+
+## Credits & Contact
+
+Team **Orion** — University of Ghana, October 2025
+**Contacts:**
+
+* Ethan Nartey: Programmer — [ethan@example.com](mailto:ethan@example.com)
+* Daniel K. D. Botchway: Designer — [daniel@example.com](mailto:daniel@example.com)
+* Nelly Amewu: Builder — [neamewu@gmail.com](mailto:neamewu@gmail.com)
