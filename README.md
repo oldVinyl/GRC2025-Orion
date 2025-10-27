@@ -219,4 +219,4 @@ Team **Orion** — University of Ghana, October 2025
 
 * Ethan Nartey: Programmer — [ethan@example.com](mailto:ethan@example.com)
 * Daniel K. D. Botchway: Designer — [daniel@example.com](mailto:daniel@example.com)
-* Nelly Amewu: Builder — [neamewu@gmail.com](mailto:neamewu@gmail.com)
+* Nelly Amewu: Builder — [neamewu@gmail.com](mailto:neamewu@gmail.com) || [oldVinyl](github.com/oldVinyl)
