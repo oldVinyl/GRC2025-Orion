@@ -1,44 +1,49 @@
-# Ghana Robotics Competition 2025 — ORION V2
+# ORION V2 — Ghana Robotics Competition 2025 (Smart City Builders Challenge)
 
-**MicroPython robot controller for the Ghana Robotics Competition (Engineers League, Smart City Builders Challenge).**
-This repository contains the code, documentation, and build assets for **ORION V2**, a 4-wheel drive robot built with the Xplore Bot kit and a Raspberry Pi Pico brain. The robot supports a 30-second autonomous period (priority missions) and manual (Bluetooth) control for the remaining match time.
-
----
-
-## Table of Contents
-
-* [Project Overview](#project-overview)
-* [Repository Structure](#repository-structure)
-* [Quick Start (Flash & Run)](#quick-start--flash--run)
-* [Hardware (Requirements & Pinout)](#hardware--requirements--pinout)
-* [Software (Files & Usage)](#software--files--usage)
-* [Autonomous and Manual Behaviors](#autonomous-and-manual-behaviors-high-level-overview)
-* [Contributing](#contributing)
-* [Troubleshooting](#troubleshooting)
-* [License](#license)
-* [Credits & Contact](#credits--contact)
+**MicroPython-powered robot designed for the Ghana Robotics Competition (Engineers League, Smart City Builders Challenge).**
+Built using the **Xplore Bot kit** and a **Raspberry Pi Pico**, ORION V2 combines autonomous bridge repair, Bluetooth manual operation, and 3D-printed attachments to complete city-building and cleanup tasks.
 
 ---
 
-## Project Overview
+## 📚 Table of Contents
 
-The **Smart City Builders Challenge** requires the robot to complete three core missions:
+* [Overview](#-overview)
 
-1. Fix a broken bridge (bridge pallets)
-2. Build essential services (stack building blocks at specific sites)
-3. Clean the city (collect rubbish balls into bins)
+  * [Challenge Context](#challenge-context)
+* [Repository Structure](#-repository-structure)
+* [Robot Summary](#-robot-summary)
+* [Hardware Overview](#%EF%B8%8F-hardware-overview)
+* [Software Architecture](#-software-architecture)
+* [Quick Start (Flash & Run)](#-quick-start-flash--run)
 
-**Strategy Summary (Team Decision):**
+  * [Bluetooth Commands](#bluetooth-commands)
+* [Behavior Summary](#-behavior-summary)
 
-* Prioritize **bridge repair** during autonomous mode (double points / avoid penalty)
-* Use manual mode for building stacks (precision stacking)
-* Use manual or autonomous rubbish collection as fallback / steady scoring
-
-> For full design rationale, testing logs, and week-by-week notes, see [`docs/Engineering_Notebook.pdf`](docs/Engineering_Notebook.pdf).
+  * [Autonomous Mode](#1%EF%B8%8F-autonomous-mode-mandatory-1-minute)
+  * [Manual Mode](#2%EF%B8%8F-manual-mode)
+* [Mechanical Design](#-mechanical-design)
+* [Calibration](#-calibration)
+* [Rebuilding ORION V2](#-rebuilding-orion-v2)
+* [Documentation & Media](#-documentation--media)
+* [Credits](#-credits)
 
 ---
 
-## Repository Structure
+## 🧠 Overview
+
+### Challenge Context
+
+The **Smart City Builders Challenge** tasks participants to design robots addressing three real-world problems in sustainable cities:
+
+1. **Fixing a Broken Bridge** – repairing road infrastructure before autonomous cars arrive.
+2. **Building Essential Services** – constructing schools, hospitals, and workplaces using color-coded blocks.
+3. **Cleaning the City** – collecting rubbish balls and disposing them in bins.
+
+Each match lasts **3 minutes**, beginning with a **1-minute autonomous mode** (worth double points), followed by a **manual mode** (Bluetooth-controlled). Teams must score as many points as possible without external assistance.
+
+---
+
+## 📁 Repository Structure
 
 ```
 ├── README.md
@@ -63,160 +68,188 @@ The **Smart City Builders Challenge** requires the robot to complete three core 
 
 ---
 
-## Quick Start — Flash & Run (Raspberry Pi Pico)
+## 🦾 Robot Summary
 
-1. Install MicroPython firmware on your Pico (use Thonny or `esptool` for flashing).
-2. Copy `src/main.py`, `src/utils.py`, and `src/autonomous.py` to the Pico root.
-3. Power the robot — `main.py` will:
-
-   * Wait for the **Start** button (`GPIO 2`)
-   * Run the autonomous routine
-   * Monitor UART for manual override (Bluetooth)
-4. To test manual mode via Bluetooth:
-
-   * Pair your phone or HC-05 module with the Pico.
-   * Send one-character commands (`F`, `B`, `L`, `R`, `S`, `1`, `2`).
-
----
-
-## Hardware — Requirements & Pinout
-
-**Board:** Raspberry Pi Pico (MicroPython)
-
-### Required Components
-
-* **4x DC Motors** — Two front, two back (for drive control)
-* **4x H-Bridge Motor Drivers (L298N or similar)** — One per motor pair, supports direction and PWM speed control
-* **3x Servo Motors** —
-
-  * Servo 1 (lifting mechanism): `GPIO 28`
-  * Servo 2 (attachment): `GPIO 18`
-  * Servo 3 (attachment): `GPIO 19`
-* **Bluetooth Module (HC-05)** — Manual control via UART
-* **Ultrasonic Sensor (HC-SR04)** — Optional; for distance measurement
-* **Start Button** — `GPIO 2`, internal pull-up enabled
-* **Battery Pack** — 7.4V (2S Li-ion or LiPo), powers Pico and drivers; ensure **common ground**
-
-### Pin Mapping
-
-#### Motor Control
-
-* **Motor 1 (Left-Front)**
-
-  * ENA (PWM): `GPIO 10`
-  * IN1 (Forward): `GPIO 11`
-  * IN2 (Backward): `GPIO 12`
-* **Motor 2 (Right-Front)**
-
-  * ENB (PWM): `GPIO 13`
-  * IN1: `GPIO 14`
-  * IN2: `GPIO 15`
-* **Motor 3 (Left-Back)**
-
-  * ENC (PWM): `GPIO 20`
-  * IN1: `GPIO 17`
-  * IN2: `GPIO 16`
-* **Motor 4 (Right-Back)**
-
-  * END (PWM): `GPIO 21`
-  * IN1: `GPIO 19`
-  * IN2: `GPIO 18`
-
-#### Servo Control
-
-* **Servo 1 (Lift Mechanism):** `GPIO 28`
-* **Servo 2 (Attachment A):** `GPIO 18` *(shared with Motor 4 Backward pin)*
-* **Servo 3 (Attachment B):** `GPIO 19` *(shared with Motor 4 Forward pin)*
-
-> ⚠️ **Pin Conflict:** Motor 4 shares control pins with Servos 2 and 3. The firmware disables motor PWM during servo operation, then reinitializes motor pins afterward. See `disable_servos()`, `enable_servos()`, and `reinitialize_motor4()` in `utils.py`.
-
-#### Other Peripherals
-
-* **Start Button:** `GPIO 2` (internal pull-up)
-* **UART / Bluetooth (HC-05):** UART0, `9600` baud
-
-  * TX (Pico) → RX (HC-05)
-  * RX (Pico) ← TX (HC-05)
+| Component             | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| **Name**              | ORION V2                                         |
+| **Controller**        | Raspberry Pi Pico (MicroPython)                  |
+| **Drive System**      | 4-wheel tank drive (DC motors via L298N drivers) |
+| **Power Supply**      | 7.4V Li-ion battery pack                         |
+| **Communication**     | HC-05 Bluetooth module (UART0, 9600 baud)        |
+| **Autonomous Inputs** | 2 start buttons (Red = GPIO 2, Blue = GPIO 6)    |
+| **Outputs**           | 4 DC motors, 3 servos                            |
+| **Attachments**       | Rear bridge pusher + front dual-servo gripper    |
 
 ---
 
-## Software — Files & Usage
+## ⚙️ Hardware Overview
 
-* **`src/utils.py`** — Hardware setup, motor & servo helpers, PWM control, and safety functions.
-* **`src/autonomous.py`** — Autonomous mission logic (bridge repair, fallback routines).
-* **`src/main.py`** — Main control loop: initialization, autonomous execution, UART override handling.
+### Core Components
 
----
+| Component         | Purpose                | Notes                                          |
+| ----------------- | ---------------------- | ---------------------------------------------- |
+| Raspberry Pi Pico | Main brain             | Runs MicroPython code (v1.22+)                 |
+| 4x DC Motors      | Movement               | Controlled by L298N drivers (PWM)              |
+| 2x L298N Modules  | Motor control          | Each drives 2 motors                           |
+| 3x Servos         | Gripper lift and claws | Temporarily disables one motor pin when in use |
+| HC-05 Bluetooth   | Manual control         | UART0 pins (GP0 = TX, GP1 = RX)                |
+| 2x Start Buttons  | Side selection         | Red = GPIO 2, Blue = GPIO 6                    |
+| Power Source      | 7.4V battery           | Common ground with Pico                        |
 
-## Autonomous and Manual Behaviors (High-Level Overview)
-
-### Autonomous Mode
-
-* Runs for the first minute of the match.
-* Executes pre-programmed actions with no manual input.
-* **Primary:** Bridge repair for double points.
-* **Fallback:** Rubbish collection if bridge repair fails.
-* **Safety:** Conservative motor speeds; tune via `set_speed()` in `utils.py`.
-* **Transition:** Switches to manual after completion or UART override.
-
-### Manual Mode
-
-* Controlled via Bluetooth UART commands for precision stacking and fine control.
-
-#### Tasks
-
-* **Building Assembly:** Stack blocks in order: foundation → middle → roof.
-* **Rubbish Collection:** Manually pick and deposit rubbish.
-* **Repositioning:** Minor movement adjustments.
-
-#### Bluetooth Commands
-
-| Command | Description         |
-| ------- | ------------------- |
-| `F`     | Move forward        |
-| `B`     | Move backward       |
-| `L`     | Turn left           |
-| `R`     | Turn right          |
-| `S`     | Stop motors         |
-| `1`     | Servo down position |
-| `2`     | Servo up position   |
-
-### Manual Override
-
-* Sending any UART command stops the autonomous routine and switches to manual control.
-* Useful for real-time intervention if the robot misaligns or encounters obstacles.
-
-> **Tip:** Pair Bluetooth before the match to ensure instant override availability.
+📄 *See* [`schemes/wiring_diagram.png`](schemes/wiring_diagram.png) *for detailed pin mapping.*
 
 ---
 
-## Contributing
+## 🧩 Software Architecture
 
-1. Create a new branch: `git checkout -b feature/branch-name`
-2. Keep commits atomic with clear messages.
-3. Submit a PR to `main` with testing notes.
+```bash
+src/
+├── main.py      # Main program (autonomous + manual control)
+└── utils.py     # Movement, servo, and behavior utilities
+```
 
----
-
-## Troubleshooting
-
-* **Motors not responding:** Check PWM wiring and power supply.
-* **Servos not moving:** Ensure motors are stopped and servos re-enabled.
-* **Bluetooth not working:** Verify baud rate (9600) and TX/RX wiring.
+* **`main.py`** handles startup, side selection, and switching between autonomous and manual modes.
+* **`utils.py`** contains helper functions for movement, servo control, and timing calibration.
 
 ---
 
-## License
+## 🔧 Quick Start (Flash & Run)
 
-Licensed under the **MIT License**. See [`LICENSE`](LICENSE) for full text.
+1. **Flash MicroPython** to the Raspberry Pi Pico (via Thonny or `esptool`).
+2. **Copy Files**: Upload `src/main.py` and `src/utils.py` to the Pico’s root directory.
+3. **Wire Components**: Follow [`schemes/wiring_diagram.png`](schemes/wiring_diagram.png) to connect motors, servos, Bluetooth, and buttons.
+4. **Power the Robot** and press:
+
+   * **Red button** → Run *Red-side autonomous routine*.
+   * **Blue button** → Run *Blue-side autonomous routine*.
+5. After the autonomous phase or when Bluetooth input is received, the robot automatically switches to **manual control mode**.
+
+### Bluetooth Commands
+
+| Command | Action        |
+| ------- | ------------- |
+| `F`     | Move forward  |
+| `B`     | Move backward |
+| `L`     | Turn left     |
+| `R`     | Turn right    |
+| `S`     | Stop          |
+| `1`     | Lower arms    |
+| `2`     | Raise arms    |
+| `3`     | Open gripper  |
+| `4`     | Close gripper |
 
 ---
 
-## Credits & Contact
+## 🤖 Behavior Summary
 
-Team **Orion** — University of Ghana, October 2025
-**Contacts:**
+### 1️⃣ Autonomous Mode (Mandatory, 1 minute)
 
-* Ethan Nartey: Programmer — [ethan@example.com](mailto:ethan@example.com)
-* Daniel K. D. Botchway: Designer — [daniel@example.com](mailto:daniel@example.com)
-* Nelly Amewu: Builder — [neamewu@gmail.com](mailto:neamewu@gmail.com) || [oldVinyl](github.com/oldVinyl)
+* Starts upon pressing Red/Blue button.
+* Executes bridge repair task based on field side.
+* Each side routine uses pre-timed motion (via `calc_time(distance_cm)` calibration).
+* Bluetooth input cancels autonomous mode immediately.
+
+#### Autonomous Routines
+
+| Side     | Behavior Summary                                                                   |
+| -------- | ---------------------------------------------------------------------------------- |
+| **Red**  | Moves forward ≈ 88 cm, turns toward bridge, aligns, and pushes pallets into place. |
+| **Blue** | Mirror version with ≈ 70 cm forward motion.                                        |
+
+#### Scoring Reference (from Game Manual)
+
+| Task                               | Autonomous  | Manual | Notes                |
+| ---------------------------------- | ----------- | ------ | -------------------- |
+| Pallet placed correctly            | 40 pts      | 20 pts | Double in autonomous |
+| Fixed bridge before carbots arrive | +10 bonus   | —      | —                    |
+| Carbot deviation                   | −30 penalty | —      | —                    |
+
+---
+
+### 2️⃣ Manual Mode
+
+* Activates automatically after autonomous mode or via Bluetooth input.
+* Allows fine control for:
+
+  * Collecting and stacking building blocks (school, hospital, workplace)
+  * Cleaning the city (rubbish balls)
+
+#### Building Rules
+
+* Blocks must be stacked **Copper → Violet → Grey**.
+* Each correctly placed block: **+5 points**.
+* Wrong color order: **−10 penalty**.
+* Complete structure in correct zone: **+50 bonus**.
+
+#### Cleanup Rules
+
+| Task                         | Autonomous | Manual | Notes                |
+| ---------------------------- | ---------- | ------ | -------------------- |
+| Rubbish deposited            | 10 pts     | 5 pts  | Must fully enter bin |
+| Mishandled/dropped container | —          | −5 pts | —                    |
+
+---
+
+## 🪛 Mechanical Design
+
+| Module                | Description                                                   |
+| --------------------- | ------------------------------------------------------------- |
+| **Drive System**      | 4-wheel tank configuration for stability and turning control. |
+| **Front Gripper**     | Dual 3D-printed rectangular arms (servo-controlled).          |
+| **Gripper Functions** | Lift (servo 1), Open/Close (servos 2 & 3).                    |
+| **Rear Attachment**   | Fixed pusher plate for bridge repair.                         |
+
+📂 3D models available in [`models/`](models/) — includes `3d_printed_arms.stl` and bridge pusher design.
+
+---
+
+## 📏 Calibration
+
+Motion timing is based on travel distance (40.5 cm/s baseline). The following formula is used for consistent movement:
+
+```python
+# utils.py
+# Convert distance (cm) to time (s)
+time = 1.8 * (distance_cm / 40.5)
+```
+
+Adjust the multiplier based on battery level and motor friction.
+
+---
+
+## 🧰 Rebuilding ORION V2
+
+To replicate the full robot:
+
+1. Assemble the Xplore Bot chassis.
+2. Attach rear bridge pusher and dual-servo front gripper.
+3. Wire components per `schemes/wiring_diagram.png`.
+4. Flash MicroPython to the Pico.
+5. Copy `main.py` and `utils.py` into root.
+6. Test motion timing with small distances before full run.
+7. Calibrate servo angles in `utils.py` (⚠️ fill values under `# TODO: calibrate_angle()` section).
+8. Verify Bluetooth communication using serial monitor or RC Controller app.
+
+---
+
+## 🧾 Documentation & Media
+
+* [`docs/Engineering_Notebook.pdf`](docs/Engineering_Notebook.pdf) — Build log, team notes, design iterations.
+* [`docs/Game_Rules.pdf`](docs/Game_Rules.pdf) — Full official Smart City Builders Challenge manual.
+* [`schemes/wiring_diagram.png`](schemes/wiring_diagram.png) — Electrical wiring reference.
+* [`models/3d_printed_arms.stl`](models/3d_printed_arms.stl) — Front gripper 3D model.
+* [`photos/`](photos/) — Contains build process and final robot images.
+* [`video/demo.mp4`](video/demo.mp4) — Demo run footage.
+
+---
+
+## 🏆 Credits
+
+* Team **Orion** — University of Ghana, October 2025
+* **Members:**
+
+  * Ethan Nartey: Programmer — [ethan@example.com](mailto:ethan@example.com) || [enartey25](https://github.com/enartey25)
+  * Daniel K. D. Botchway: Designer — [daniel@example.com](mailto:daniel@example.com) || [08ops](https://github.com/08ops)
+  * Nelly Amewu: Builder — [neamewu@gmail.com](mailto:neamewu@gmail.com) || [oldVinyl](https://github.com/oldVinyl)
+* **Event Organizer:** Fireflyio Robotics — Ghana Robotics Competition 2025
